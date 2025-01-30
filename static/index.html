@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat em Tempo Real</title>
+  <style>
+    body{
+      font-family: Arial, Helvetica, sans-serif;
+      padding: 20px;
+    }
+    #chat {
+      border: 1px solid #ddd;
+      height: 300px;
+      overflow-y: scroll;
+      margin-bottom: 10px;
+    }
+    #message {
+      width: 80%;
+      padding: 10px;
+    }
+    #send {
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Chat em Tempo Real</h1>
+  <div id="Chat"></div>
+  <input type="text" id="message" placeholder="Digite sua Mensagem...">
+  <button id="send">Enviar</button>
+
+  <script>
+    const ws = new WebSocket('ws://localhost:8080/ws');
+    const chat = document.getElementById('chat')
+    const messageInput = document.getElementById('message')
+    const sendButton = document.getElementById('send')
+
+    // Recebe mensagens do servidor e exibe no chat
+    ws.onmessage = function (event){
+      const message = document.createElement('div')
+      message.textContent = event.data;
+      chat.appendChild(message);
+      chat.scrollTop = chat.scrollHeight;
+    };
+
+    //Envia mensagens para o servidor 
+    sendButton.addEventListener('click', () => {
+      const message = messageInput.value;
+      if (message) {
+        ws.send(message);
+        messageInput.value = '';
+      }
+    });
+  </script>
+</body>
+</html>
