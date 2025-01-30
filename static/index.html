@@ -12,35 +12,45 @@
     #chat {
       border: 1px solid #ddd;
       height: 300px;
-      overflow-y: scroll;
+      overflow-y: auto;
       margin-bottom: 10px;
+      padding: 10px;
+      background-color: #f9f9f9;
     }
     #message {
       width: 80%;
       padding: 10px;
+      margin-right: 10px;
     }
     #send {
       padding: 10px 20px;
       cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+    }
+    #send:hover{
+      background-color: #45a049;
     }
   </style>
 </head>
 
 <body>
   <h1>Chat em Tempo Real</h1>
-  <div id="Chat"></div>
+  <div id="chat"></div>
   <input type="text" id="message" placeholder="Digite sua Mensagem...">
   <button id="send">Enviar</button>
 
   <script>
     const ws = new WebSocket('ws://localhost:8080/ws');
+
     const chat = document.getElementById('chat')
     const messageInput = document.getElementById('message')
     const sendButton = document.getElementById('send')
 
     // Recebe mensagens do servidor e exibe no chat
     ws.onmessage = function (event){
-      const message = document.createElement('div')
+      const chat = document.getElementById('chat');
+      const message = document.createElement('div');
       message.textContent = event.data;
       chat.appendChild(message);
       chat.scrollTop = chat.scrollHeight;
