@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -15,34 +16,66 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// Lista segura para armazanar conexões webSocket
+var connections = make(map[*websocket.Conn]bool)
+var mutex = sync.Mutex{}
+
+// Canal para mensagens broadCast
+var broadcast = make(chan []byte)
+
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Println("Erro ao fazer upgrade para WebSocket:", err)
 		return
 	}
-	defer conn.Close() // Fecha a conexão teste no local do host
+	defer func() {
+		mutex.Lock()
+		delete(connections, conn) // Remove a conexão ao sair
+		mutex.Unlock()
+		conn.Close()
+	}()
+
+	// Adiciona a conexão à lista
+	mutex.Lock()
+	connections[conn] = true
+	mutex.Unlock()
 
 	for {
 		// Lê a mensagem do cliente
-		meesageType, msg, err := conn.ReadMessage()
+		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Erro ao ler mensagem:", err)
 			break
 		}
+		// Envia a mensagem para o canal broadcast
+		broadcast <- msg
+	}
+}
 
-		fmt.Printf("Mensagem recebida: %s \n", msg)
+func handleMessages() {
+	for {
+		// Lê mensagem do canal broadCast
+		msg := <-broadcast
 
-		// Envia a mesma mensagem de volta ao cliente (echo)
-		if err := conn.WriteMessage(meesageType, msg); err != nil {
-			fmt.Println("Erro ao escrever mensagem:", err)
-			break
+		// Envia para todas as conexões ativas
+		mutex.Lock()
+		for conn := range connections {
+			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				fmt.Println("Erro ao escrever mensagem:", err)
+				conn.Close()
+				delete(connections, conn)
+			}
 		}
+		mutex.Unlock()
 	}
 }
 
 func main() {
 	http.HandleFunc("/ws", handleConnections)
+
+	// Inicia a Goroutine para tratar mensagens
+	go handleMessages()
 
 	fmt.Println("Servidor iniciado na porta 8080...")
 	http.ListenAndServe(":8080", nil)
